@@ -9,7 +9,10 @@ import (
 )
 
 type InspectResult struct {
+	// The number of records
 	RecordCount int `json:"record_count"`
+	// The number of fields of the first record
+	FieldCount int `json:"field_count"`
 }
 
 func main() {
@@ -42,6 +45,9 @@ func InspectCsv(csvFile string) (*InspectResult, error) {
 	for readResult := range inCh {
 		if readResult.Error != nil {
 			return nil, readResult.Error
+		}
+		if result.RecordCount == 0 {
+			result.FieldCount = len(readResult.Record)
 		}
 		result.RecordCount++
 	}
