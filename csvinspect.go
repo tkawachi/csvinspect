@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/saintfish/chardet"
 )
 
 type InspectResult struct {
@@ -13,6 +15,8 @@ type InspectResult struct {
 	RecordCount int `json:"record_count"`
 	// The number of fields of the first record
 	FieldCount int `json:"field_count"`
+	// The charset of the csv file
+	Charset string `json:"charset"`
 }
 
 func main() {
@@ -41,6 +45,11 @@ type ReadResult struct {
 
 func InspectCsv(csvFile string) (*InspectResult, error) {
 	result := InspectResult{}
+	charset, err := DetectCharset(csvFile, 8192)
+	if err != nil {
+		return nil, err
+	}
+	result.Charset = charset
 	inCh := ReadCsv(csvFile)
 	for readResult := range inCh {
 		if readResult.Error != nil {
@@ -52,6 +61,25 @@ func InspectCsv(csvFile string) (*InspectResult, error) {
 		result.RecordCount++
 	}
 	return &result, nil
+}
+
+func DetectCharset(csvFile string, peekSize int) (string, error) {
+	f, err := os.Open(csvFile)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	buf := make([]byte, peekSize)
+	n, err := f.Read(buf)
+	if err != nil {
+		return "", err
+	}
+	det := chardet.NewTextDetector()
+	detRslt, err := det.DetectBest(buf[:n])
+	if err != nil {
+		return "", err
+	}
+	return detRslt.Charset, nil
 }
 
 func ReadCsv(csvFile string) chan ReadResult {
