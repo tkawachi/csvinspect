@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/saintfish/chardet"
+	"os/exec"
+	"strings"
 )
 
 type InspectResult struct {
@@ -45,7 +45,7 @@ type ReadResult struct {
 
 func InspectCsv(csvFile string) (*InspectResult, error) {
 	result := InspectResult{}
-	charset, err := DetectCharset(csvFile, 8192)
+	charset, err := DetectCharset(csvFile)
 	if err != nil {
 		return nil, err
 	}
@@ -63,23 +63,17 @@ func InspectCsv(csvFile string) (*InspectResult, error) {
 	return &result, nil
 }
 
-func DetectCharset(csvFile string, peekSize int) (string, error) {
-	f, err := os.Open(csvFile)
+func DetectCharset(csvFile string) (string, error) {
+	nkf, ok := os.LookupEnv("NKF")
+	if !ok {
+		nkf = "nkf"
+	}
+	cmd := exec.Command(nkf, "-g", csvFile)
+	out, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	buf := make([]byte, peekSize)
-	n, err := f.Read(buf)
-	if err != nil {
-		return "", err
-	}
-	det := chardet.NewTextDetector()
-	detRslt, err := det.DetectBest(buf[:n])
-	if err != nil {
-		return "", err
-	}
-	return detRslt.Charset, nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 func ReadCsv(csvFile string) chan ReadResult {
