@@ -18,14 +18,10 @@ func main() {
 		os.Exit(1)
 	}
 	csvFile := os.Args[1]
-	inCh := ReadCsv(csvFile)
-	result := InspectResult{}
-	for readResult := range inCh {
-		if readResult.Error != nil {
-			fmt.Println("Error:", readResult.Error)
-			os.Exit(1)
-		}
-		result.RecordCount++
+	result, err := InspectCsv(csvFile)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -38,6 +34,18 @@ func main() {
 type ReadResult struct {
 	Record []string
 	Error  error
+}
+
+func InspectCsv(csvFile string) (*InspectResult, error) {
+	result := InspectResult{}
+	inCh := ReadCsv(csvFile)
+	for readResult := range inCh {
+		if readResult.Error != nil {
+			return nil, readResult.Error
+		}
+		result.RecordCount++
+	}
+	return &result, nil
 }
 
 func ReadCsv(csvFile string) chan ReadResult {
