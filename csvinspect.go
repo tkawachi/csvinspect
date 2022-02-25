@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 type InspectResult struct {
@@ -13,6 +15,8 @@ type InspectResult struct {
 	RecordCount int `json:"record_count"`
 	// The number of fields of the first record
 	FieldCount int `json:"field_count"`
+	// The charset of the csv file
+	Charset string `json:"charset"`
 }
 
 func main() {
@@ -41,6 +45,11 @@ type ReadResult struct {
 
 func InspectCsv(csvFile string) (*InspectResult, error) {
 	result := InspectResult{}
+	charset, err := DetectCharset(csvFile)
+	if err != nil {
+		return nil, err
+	}
+	result.Charset = charset
 	inCh := ReadCsv(csvFile)
 	for readResult := range inCh {
 		if readResult.Error != nil {
@@ -52,6 +61,19 @@ func InspectCsv(csvFile string) (*InspectResult, error) {
 		result.RecordCount++
 	}
 	return &result, nil
+}
+
+func DetectCharset(csvFile string) (string, error) {
+	nkf, ok := os.LookupEnv("NKF")
+	if !ok {
+		nkf = "nkf"
+	}
+	cmd := exec.Command(nkf, "-g", csvFile)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func ReadCsv(csvFile string) chan ReadResult {
